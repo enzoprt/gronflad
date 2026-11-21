@@ -32,6 +32,17 @@ The small residual on R_A and R_T comes from rounding of C_A in the paper. All v
 
 The method is statistical. Gronflad raises a `ValidityWarning` when a hull or speed falls outside the regression envelope (Froude number, prismatic coefficient, L/B, B/T) instead of silently extrapolating.
 
+## Interactive app
+
+Change the hull, the propeller and the speed, and see resistance, power and efficiencies update live. Inputs outside the validity range of the method are flagged on screen.
+
+![Gronflad web app](docs/img/app.png)
+
+```bash
+pip install -e ".[app]"
+streamlit run app/streamlit_app.py
+```
+
 ## Quick start
 
 ```bash
@@ -65,7 +76,8 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW")
 - [ ] Fuel module: LHV, density, tank factors, FuelEU Maritime well-to-wake factors
 - [ ] Route module: great circle legs and ERA5 wind along the route
 - [ ] Flettner rotor model (lift and drag versus spin ratio, rotor power consumption)
-- [ ] Interactive web demo
+- [x] Interactive web app (Streamlit)
+- [ ] Public online deployment
 
 ## References
 

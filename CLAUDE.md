@@ -12,8 +12,9 @@ Voyage energy model for low carbon shipping (Python library, `src/gronflad`).
 ## Commands
 - Setup: `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
 - Tests: `.venv/bin/pytest`
+- Web app: `.venv/bin/streamlit run app/streamlit_app.py`
 - README figure: `.venv/bin/python examples/resistance_breakdown.py`
 
 ## Status
 - Done: Holtrop-Mennen 1982 resistance and propulsion factors, validated on the paper's 25 kn example.
-- Next: Wageningen B-series (eta_O is still an input), KCS validation, fuels, route + ERA5 wind, Flettner rotor, web demo.
+- Next: Wageningen B-series (eta_O is still an input), KCS validation, fuels, route + ERA5 wind, Flettner rotor, online deployment of the app.
