@@ -12,6 +12,8 @@ import streamlit as st
 
 from gronflad import KNOT, Hull, Propeller, ValidityWarning, propulsion, resistance
 from gronflad.ships import HM1982_HULL, HM1982_PROPELLER
+from gronflad.fuels import FUELS, MGO, fueleu_limit, wind_reward
+from gronflad.voyage import Voyage, compare_fuels, teu_slots, voyage_energy
 from gronflad.wageningen import BSeries
 
 PUBLISHED = {  # Holtrop and Mennen (1982), p. 170, 25 knots
@@ -68,6 +70,18 @@ with st.sidebar:
     v_design = st.slider("Design speed (knots)", 5.0, 30.0, 25.0, 0.5)
     v_min, v_max = st.slider("Speed range for curves (knots)", 3.0, 32.0, (10.0, 26.0), 0.5)
 
+    st.header("Voyage")
+    distance = st.number_input("Distance (nautical miles)", 100.0, 20000.0, 5000.0, 100.0)
+    sea_margin = st.slider("Sea margin over calm water (%)", 0, 40, 15, 1) / 100
+    engine_eff = st.slider("Engine efficiency", 0.30, 0.60, 0.50, 0.01,
+                           help="0.50 is a two-stroke diesel at about 170 g/kWh on MGO.")
+    year = st.select_slider("FuelEU reporting year", options=[2025, 2030, 2035, 2040, 2045, 2050], value=2030)
+    wind_share = st.slider("Wind assisted share of propulsion power (%)", 0, 30, 0, 1,
+                           help="Only used for the FuelEU reward factor until the rotor model lands.") / 100
+    default_fuels = ["HFO", "MGO", "LNG, Otto medium speed", "LNG, Diesel slow speed",
+                     "Methanol (natural gas)", "Ammonia (natural gas)", "e-Methanol", "e-Ammonia"]
+    chosen = st.multiselect("Fuels to compare", list(FUELS), default=default_fuels)
+
 hull = replace(
     HM1982_HULL, name="hull", L=L, B=B, T_F=T, T_A=T, volume=volume, lcb=lcb,
     C_M=C_M, C_WP=C_WP, A_BT=A_BT, h_B=h_B, A_T=A_T, S_APP=S_APP, C_stern=C_stern,
@@ -93,8 +107,8 @@ c[3].metric("Propulsive efficiency η_D", f"{p.eta_D:.3f}")
 c[4].metric("Propeller speed", f"{p.n * 60:.1f} rpm" if p.n else "n/a")
 c[5].metric("Froude number", f"{res.Fn:.3f}")
 
-tab_curves, tab_propeller, tab_details, tab_validation = st.tabs(
-    ["Speed curves", "Propeller", "Breakdown at design speed", "Validation"]
+tab_curves, tab_propeller, tab_fuels, tab_details, tab_validation = st.tabs(
+    ["Speed curves", "Propeller", "Voyage & fuels", "Breakdown at design speed", "Validation"]
 )
 
 with tab_curves:
@@ -181,6 +195,84 @@ with tab_propeller:
         st.caption(
             f"Dashed line: operating point at {v_design:g} kn (J = {p.J:.3f}, η_O = {p.eta_O:.3f}). "
             "Full scale K_T with the Holtrop and Mennen (1982) drag correction."
+        )
+
+with tab_fuels:
+    voyage = Voyage(distance_nm=distance, speed_kn=v_design, sea_margin=sea_margin, engine_efficiency=engine_eff)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ValidityWarning)
+        energy = voyage_energy(hull, prop, voyage, eta_O=eta_O)
+    f_wind = wind_reward(wind_share)
+    uses = compare_fuels(energy, [FUELS[name] for name in chosen], f_wind)
+    mgo_storage = compare_fuels(energy, [MGO])[0].storage_volume
+    limit = fueleu_limit(year)
+
+    c = st.columns(4)
+    c[0].metric("Voyage duration", f"{voyage.duration_h / 24:.1f} days")
+    c[1].metric("Service shaft power", f"{energy.P_service / 1e6:.1f} MW")
+    c[2].metric("Fuel energy", f"{energy.fuel_energy / 1e6:,.1f} TJ")
+    c[3].metric(f"FuelEU limit {year}", f"{limit:.1f} g/MJ")
+
+    if not uses:
+        st.info("Pick at least one fuel in the sidebar.")
+    else:
+        table = pd.DataFrame(
+            {
+                "Fuel": [u.fuel.name for u in uses],
+                "Mass (t)": [u.mass for u in uses],
+                "Storage volume (m³)": [u.storage_volume for u in uses],
+                "Extra TEU slots vs MGO": [teu_slots(u.storage_volume - mgo_storage) for u in uses],
+                "WtW intensity (gCO2eq/MJ)": [u.intensity for u in uses],
+                "WtW GHG (t CO2eq)": [u.ghg for u in uses],
+                f"FuelEU {year}": ["compliant" if u.complies(year) else "deficit" for u in uses],
+                f"Penalty {year} (k EUR)": [u.fueleu_penalty(year) / 1e3 for u in uses],
+            }
+        )
+        bars = (
+            alt.Chart(table)
+            .mark_bar(color=SERIES[0], cornerRadiusEnd=4, height={"band": 0.6})
+            .encode(
+                x=alt.X("WtW intensity (gCO2eq/MJ):Q", title="Well-to-wake GHG intensity (gCO2eq/MJ)"),
+                y=alt.Y("Fuel:N", sort="-x", title=None, axis=alt.Axis(labelLimit=0)),
+                tooltip=["Fuel", alt.Tooltip("WtW intensity (gCO2eq/MJ):Q", format=".1f"),
+                         alt.Tooltip("WtW GHG (t CO2eq):Q", format=",.0f")],
+            )
+        )
+        rule = alt.Chart(pd.DataFrame({"x": [limit]})).mark_rule(color="#52514e", strokeDash=[4, 4]).encode(x="x:Q")
+        label = (
+            alt.Chart(pd.DataFrame({"x": [limit], "t": [f"FuelEU {year} limit"]}))
+            .mark_text(align="left", dx=4, dy=-6, color="#52514e")
+            .encode(x="x:Q", y=alt.value(0), text="t:N")
+        )
+        st.altair_chart((bars + rule + label).properties(title="GHG intensity per fuel", height=34 * len(uses) + 40),
+                        width="stretch")
+
+        storage = (
+            alt.Chart(table.assign(ratio=table["Storage volume (m³)"] / mgo_storage))
+            .mark_bar(color=SERIES[0], cornerRadiusEnd=4, height={"band": 0.6})
+            .encode(
+                x=alt.X("ratio:Q", title="Storage volume relative to MGO tanks"),
+                y=alt.Y("Fuel:N", sort="-x", title=None, axis=alt.Axis(labelLimit=0)),
+                tooltip=["Fuel", alt.Tooltip("Storage volume (m³):Q", format=",.0f"),
+                         alt.Tooltip("Extra TEU slots vs MGO:Q", format=",.0f")],
+            )
+            .properties(title="Bunker storage volume for this voyage", height=34 * len(uses) + 40)
+        )
+        st.altair_chart(storage, width="stretch")
+
+        st.dataframe(
+            table.style.format(
+                {"Mass (t)": "{:,.0f}", "Storage volume (m³)": "{:,.0f}", "Extra TEU slots vs MGO": "{:,.0f}",
+                 "WtW intensity (gCO2eq/MJ)": "{:.1f}", "WtW GHG (t CO2eq)": "{:,.0f}",
+                 f"Penalty {year} (k EUR)": "{:,.0f}"}
+            ),
+            hide_index=True, width="stretch",
+        )
+        st.caption(
+            "Emission factors: FuelEU Maritime, Annex II. Grey ammonia, hydrogen and methanol are made from "
+            "natural gas. e-fuels are set at the minimum saving that qualifies as RFNBO (28.2 gCO2eq/MJ). "
+            "Storage volumes include tank systems and are indicative (DNV GL, 2020). The penalty assumes "
+            "the whole voyage is in FuelEU scope, without the RFNBO multiplier or pilot fuel."
         )
 
 with tab_details:

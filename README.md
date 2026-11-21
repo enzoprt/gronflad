@@ -6,15 +6,15 @@ Gronflad (from the Danish *grønne flåde*, "green fleet") is an open source voy
 
 1. **Hull resistance** in calm water (Holtrop and Mennen method)
 2. **Propulsion**: hull-propeller interaction, Wageningen B-series propeller, shaft power
-3. **Route and weather**: real wind along a shipping lane *(planned)*
-4. **Wind assistance**: thrust and power saving of Flettner rotors *(planned)*
-5. **Alternative fuels**: ammonia, methanol, LNG and hydrogen compared on bunker volume, cargo capacity loss and well-to-wake emissions *(planned)*
+3. **Voyage and fuels**: ammonia, methanol, LNG and hydrogen compared on bunker mass, storage volume, lost container slots, well-to-wake emissions and FuelEU Maritime compliance
+4. **Route and weather**: real wind along a shipping lane *(planned)*
+5. **Wind assistance**: thrust and power saving of Flettner rotors *(planned)*
 
 ![Resistance breakdown](docs/img/resistance_breakdown.png)
 
 ## Validation first
 
-Every model is checked against published data before it is used. The resistance and propulsion modules reproduce the numerical example of Holtrop and Mennen (1982), a 205 m single screw ship at 25 knots. Starting from the hull particulars alone, with a B-series propeller at optimum pitch:
+Gronflad is a pure software project. Every model is checked against data already published in the literature before it is used, no new measurements are involved. The resistance and propulsion modules reproduce the numerical example of Holtrop and Mennen (1982), a 205 m single screw ship at 25 knots. Starting from the hull particulars alone, with a B-series propeller at optimum pitch:
 
 | Quantity | Published | Gronflad | Deviation |
 |---|---:|---:|---:|
@@ -36,13 +36,23 @@ The 86 B-series polynomial coefficients were cross-checked term by term against 
 
 The method is statistical. Gronflad raises a `ValidityWarning` when a hull or speed falls outside the regression envelope (Froude number, prismatic coefficient, L/B, B/T) instead of silently extrapolating.
 
+## Alternative fuels
+
+![Fuel comparison](docs/img/fuel_comparison.png)
+
+Emission factors are the official defaults of FuelEU Maritime (Regulation (EU) 2023/1805, Annex II), combined with the Annex I method including methane slip. Grey ammonia and methanol made from natural gas are worse than heavy fuel oil on a well-to-wake basis. Only e-fuels (RFNBO) meet the long term limits, and they come with two to four times the storage volume. For a given voyage, Gronflad turns this into tonnes of fuel, cubic metres of tanks, container slots lost compared with MGO and the FuelEU penalty for the chosen year.
+
+Storage volumes including tank systems are indicative values derived from DNV GL (2020). Pilot fuel, the RFNBO multiplier and per-engine efficiency differences are not modelled yet.
+
 ## Interactive app
 
-Change the hull, the propeller and the speed, and see resistance, power, efficiencies and the propeller open water diagram update live. Inputs outside the validity range of the method are flagged on screen.
+Change the hull, the propeller, the speed and the voyage, and see resistance, power, the propeller open water diagram and the fuel comparison update live. Inputs outside the validity range of the method are flagged on screen.
 
 ![Gronflad web app](docs/img/app.png)
 
 ![Propeller open water diagram](docs/img/app_propeller.png)
+
+![Voyage and fuel comparison](docs/img/app_fuels.png)
 
 ```bash
 pip install -e ".[app]"
@@ -78,8 +88,8 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - [x] Holtrop and Mennen (1982) calm water resistance, validated
 - [x] Propulsion factors (w, t, η_R) and Keller blade area, validated
 - [x] Wageningen B-series propeller with full scale correction, validated
-- [ ] Validation on the KRISO Container Ship (KCS) towing tank data
-- [ ] Fuel module: LHV, density, tank factors, FuelEU Maritime well-to-wake factors
+- [ ] Comparison with published reference data for the KRISO Container Ship (KCS)
+- [x] Fuel module: FuelEU Maritime well-to-wake intensity, storage volume, compliance and penalty
 - [ ] Route module: great circle legs and ERA5 wind along the route
 - [ ] Flettner rotor model (lift and drag versus spin ratio, rotor power consumption)
 - [x] Interactive web app (Streamlit)
@@ -88,6 +98,8 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 ## References
 
 - Holtrop, J. and Mennen, G.G.J. (1982). An approximate power prediction method. *International Shipbuilding Progress*, 29(335), 166-170.
+- Regulation (EU) 2023/1805 of the European Parliament and of the Council on the use of renewable and low-carbon fuels in maritime transport (FuelEU Maritime), Annexes I and II.
+- DNV GL (2020). *Ammonia as a marine fuel*. White paper.
 - Oosterveld, M.W.C. and van Oossanen, P. (1975). Further computer-analyzed data of the Wageningen B-screw series. *International Shipbuilding Progress*, 22(251), 251-262.
 
 ## Author

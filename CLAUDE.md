@@ -3,6 +3,7 @@
 Voyage energy model for low carbon shipping (Python library, `src/gronflad`).
 
 ## Rules
+- Pure software project: no experiments, only data already published in the literature.
 - All code, docs and commit messages in English.
 - Written text for the author (README, docs, posts): no em-dashes and no semicolons.
 - Validation first: every physical model must reproduce a published reference case in `tests/` before it is used elsewhere. Cite the source and page in the module docstring.
@@ -13,8 +14,8 @@ Voyage energy model for low carbon shipping (Python library, `src/gronflad`).
 - Setup: `python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'`
 - Tests: `.venv/bin/pytest`
 - Web app: `.venv/bin/streamlit run app/streamlit_app.py`
-- README figure: `.venv/bin/python examples/resistance_breakdown.py`
+- README figures: `.venv/bin/python examples/resistance_breakdown.py` and `examples/fuel_comparison.py`
 
 ## Status
-- Done: Holtrop-Mennen 1982 resistance and propulsion factors, Wageningen B-series (K_Q scale correction off by default, as in the paper example), all validated on the paper's 25 kn example.
-- Next: KCS validation, fuels, route + ERA5 wind, Flettner rotor, online deployment of the app.
+- Done: Holtrop-Mennen 1982 resistance and propulsion factors, Wageningen B-series (K_Q scale correction off by default, as in the paper example), all validated on the paper's 25 kn example. Fuels (FuelEU Annex II factors) and voyage energy.
+- Next: KCS comparison with published data, route + ERA5 wind, Flettner rotor, online deployment of the app.
