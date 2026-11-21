@@ -1,8 +1,8 @@
 """Propulsion factors and shaft power for single screw ships.
 
 Hull-propeller interaction (w, t, eta_R) and blade area follow Holtrop and
-Mennen (1982). The open water efficiency eta_O is an input until the
-Wageningen B-series model is implemented.
+Mennen (1982). The open water efficiency comes from the Wageningen B-series,
+or can be given directly.
 """
 
 from dataclasses import dataclass
@@ -10,6 +10,7 @@ from math import sqrt
 
 from .holtrop_mennen import Resistance
 from .hull import Hull
+from .wageningen import BSeries, operating_point, optimum_pitch
 from .water import G, SEA_WATER_15C, Water
 
 # p_0 - p_v for sea water at 15 degC, N/m2 (Holtrop and Mennen, 1982)
@@ -22,6 +23,7 @@ class Propeller:
     Z: int = 4  # number of blades
     clearance: float = 0.2  # blade tip to keel line, m
     AE_A0: float | None = None  # expanded blade area ratio, Keller estimate if None
+    P_D: float | None = None  # pitch ratio, optimum for the operating point if None
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,9 @@ class Propulsion:
     thrust: float  # N
     P_E: float
     P_S: float
+    P_D: float | None = None  # B-series pitch ratio, None when eta_O was given
+    J: float | None = None  # advance coefficient
+    n: float | None = None  # rate of revolution, 1/s
 
     @property
     def eta_H(self) -> float:
@@ -106,17 +111,31 @@ def propulsion(
     hull: Hull,
     prop: Propeller,
     res: Resistance,
-    eta_O: float,
+    eta_O: float | None = None,
     eta_S: float = 0.99,
     water: Water = SEA_WATER_15C,
 ) -> Propulsion:
-    """Shaft power required to overcome resistance `res`."""
+    """Shaft power required to overcome resistance `res`.
+
+    If `eta_O` is None, the propeller is modelled as a Wageningen B-series screw.
+    """
     w = wake_fraction(hull, prop, res)
     t = thrust_deduction(hull, prop)
     thrust = res.R_T / (1 - t)
     AE_A0 = prop.AE_A0 if prop.AE_A0 is not None else keller_blade_area(hull, prop, thrust, water)
     eta_R = relative_rotative_efficiency(hull, AE_A0)
+
+    op = None
+    if eta_O is None:
+        V_A = res.V * (1 - w)
+        if prop.P_D is None:
+            op = optimum_pitch(prop.D, prop.Z, AE_A0, thrust, V_A, water.rho)
+        else:
+            op = operating_point(BSeries(prop.D, prop.Z, AE_A0, prop.P_D), thrust, V_A, water.rho)
+        eta_O = op.eta_O
+
     P_S = res.P_E / (eta_R * eta_O * eta_S * (1 - t) / (1 - w))
     return Propulsion(
-        w=w, t=t, eta_R=eta_R, eta_O=eta_O, eta_S=eta_S, AE_A0=AE_A0, thrust=thrust, P_E=res.P_E, P_S=P_S
+        w=w, t=t, eta_R=eta_R, eta_O=eta_O, eta_S=eta_S, AE_A0=AE_A0, thrust=thrust, P_E=res.P_E, P_S=P_S,
+        P_D=op.propeller.P_D if op else None, J=op.J if op else None, n=op.n if op else None,
     )

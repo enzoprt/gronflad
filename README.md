@@ -5,7 +5,7 @@
 Gronflad (from the Danish *grønne flåde*, "green fleet") is an open source voyage energy model for low carbon shipping. It chains naval architecture and energy engineering in one transparent Python library:
 
 1. **Hull resistance** in calm water (Holtrop and Mennen method)
-2. **Propulsion**: hull-propeller interaction, propeller efficiency, shaft power
+2. **Propulsion**: hull-propeller interaction, Wageningen B-series propeller, shaft power
 3. **Route and weather**: real wind along a shipping lane *(planned)*
 4. **Wind assistance**: thrust and power saving of Flettner rotors *(planned)*
 5. **Alternative fuels**: ammonia, methanol, LNG and hydrogen compared on bunker volume, cargo capacity loss and well-to-wake emissions *(planned)*
@@ -14,7 +14,7 @@ Gronflad (from the Danish *grønne flåde*, "green fleet") is an open source voy
 
 ## Validation first
 
-Every model is checked against published data before it is used. The resistance and propulsion modules reproduce the numerical example of Holtrop and Mennen (1982), a 205 m single screw ship at 25 knots:
+Every model is checked against published data before it is used. The resistance and propulsion modules reproduce the numerical example of Holtrop and Mennen (1982), a 205 m single screw ship at 25 knots. Starting from the hull particulars alone, with a B-series propeller at optimum pitch:
 
 | Quantity | Published | Gronflad | Deviation |
 |---|---:|---:|---:|
@@ -26,17 +26,23 @@ Every model is checked against published data before it is used. The resistance 
 | Wake fraction w | 0.2584 | 0.2580 | 0.15 % |
 | Thrust deduction t | 0.1747 | 0.1747 | 0.0 % |
 | Relative rotative efficiency η_R | 0.9931 | 0.9931 | 0.0 % |
-| Shaft power P_S (kW) | 32621 | 32618 | 0.01 % |
+| Open water efficiency η_O | 0.6461 | 0.6454 | 0.1 % |
+| Propeller speed n (rpm) | 99.6 | 98.8 | 0.7 % |
+| Shaft power P_S (kW) | 32621 | 32655 | 0.10 % |
 
-The small residual on R_A and R_T comes from rounding of C_A in the paper. All values are enforced by the test suite (`tests/test_holtrop_mennen_1982.py`).
+The small residual on R_A and R_T comes from rounding of C_A in the paper. The paper does not print its pitch ratio, so Gronflad picks the optimum one, which explains the small difference in propeller speed. At the published rpm, the B-series polynomials match the published K_T within 0.04 % and K_Q within 0.14 %. All values are enforced by the test suite (`tests/`).
+
+The 86 B-series polynomial coefficients were cross-checked term by term against two independent open source codes before use.
 
 The method is statistical. Gronflad raises a `ValidityWarning` when a hull or speed falls outside the regression envelope (Froude number, prismatic coefficient, L/B, B/T) instead of silently extrapolating.
 
 ## Interactive app
 
-Change the hull, the propeller and the speed, and see resistance, power and efficiencies update live. Inputs outside the validity range of the method are flagged on screen.
+Change the hull, the propeller and the speed, and see resistance, power, efficiencies and the propeller open water diagram update live. Inputs outside the validity range of the method are flagged on screen.
 
 ![Gronflad web app](docs/img/app.png)
+
+![Propeller open water diagram](docs/img/app_propeller.png)
 
 ```bash
 pip install -e ".[app]"
@@ -63,15 +69,15 @@ hull = Hull(
 res = resistance(hull, 25 * KNOT)
 print(f"Total resistance: {res.R_T / 1e3:.0f} kN, effective power: {res.P_E / 1e3:.0f} kW")
 
-prop = propulsion(hull, Propeller(D=8.0, Z=4), res, eta_O=0.646)
-print(f"Shaft power: {prop.P_S / 1e3:.0f} kW")
+prop = propulsion(hull, Propeller(D=8.0, Z=4), res)  # B-series at optimum pitch
+print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {prop.P_D:.2f}")
 ```
 
 ## Roadmap
 
 - [x] Holtrop and Mennen (1982) calm water resistance, validated
 - [x] Propulsion factors (w, t, η_R) and Keller blade area, validated
-- [ ] Wageningen B-series open water model (replaces the η_O input)
+- [x] Wageningen B-series propeller with full scale correction, validated
 - [ ] Validation on the KRISO Container Ship (KCS) towing tank data
 - [ ] Fuel module: LHV, density, tank factors, FuelEU Maritime well-to-wake factors
 - [ ] Route module: great circle legs and ERA5 wind along the route
@@ -82,6 +88,7 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW")
 ## References
 
 - Holtrop, J. and Mennen, G.G.J. (1982). An approximate power prediction method. *International Shipbuilding Progress*, 29(335), 166-170.
+- Oosterveld, M.W.C. and van Oossanen, P. (1975). Further computer-analyzed data of the Wageningen B-screw series. *International Shipbuilding Progress*, 22(251), 251-262.
 
 ## Author
 
