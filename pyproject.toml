@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gronflad"
+version = "0.1.0"
+description = "Voyage energy model for low carbon shipping: hull resistance, propulsion, wind assistance and alternative fuels."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Enzo Pierrot" }]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.8", "numpy>=1.26"]
+dev = ["pytest>=8", "matplotlib>=3.8", "numpy>=1.26"]
+
+[project.urls]
+Repository = "https://github.com/enzoprt/gronflad"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
