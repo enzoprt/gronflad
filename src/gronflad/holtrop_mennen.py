@@ -88,7 +88,9 @@ def form_factor(hull: Hull) -> float:
 
 
 def half_entrance_angle(hull: Hull) -> float:
-    """Half angle of entrance i_E in degrees, estimated from the main particulars."""
+    """Half angle of entrance i_E in degrees, given or estimated from the main particulars."""
+    if hull.i_E is not None:
+        return hull.i_E
     L, B = hull.L, hull.B
     return 1 + 89 * exp(
         -((L / B) ** 0.80856)

@@ -27,6 +27,7 @@ class Hull:
     k2_app: float = 1.5  # equivalent appendage form factor (1 + k2)
     C_stern: float = 0.0  # afterbody: -10 V sections, 0 normal, +10 U with Hogner stern
     S: float | None = None  # bare hull wetted surface, estimated if None
+    i_E: float | None = None  # half angle of entrance, degrees, estimated if None
     name: str = "hull"
 
     @property

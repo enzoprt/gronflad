@@ -19,4 +19,5 @@ Voyage energy model for low carbon shipping (Python library, `src/gronflad`).
 ## Status
 - Done: Holtrop-Mennen 1982 resistance and propulsion factors, Wageningen B-series (K_Q scale correction off by default, as in the paper example), all validated on the paper's 25 kn example. Fuels (FuelEU Annex II factors) and voyage energy. Flettner rotor (Tillig and Ringsberg 2020) with Norsepower limits, routes with ERA5 2024 wind cached in `src/gronflad/data/wind` (refresh with `scripts/fetch_wind.py`).
 - Hull drift resistance from rotor side force (`drift.py`, Tillig and Ringsberg eq. 33 and 37).
-- Next: rudder resistance and yaw balance, KCS comparison with published data, more routes, online deployment of the app.
+- KCS comparison (`tests/test_kcs.py`): hull inputs computed from the SIMMAN IGES (`iges.py`, `hydrostatics.py`, `scripts/kcs_hydrostatics.py`), Holtrop about 10 % above the extrapolated model test.
+- Next: rudder resistance and yaw balance, more routes, online deployment of the app.

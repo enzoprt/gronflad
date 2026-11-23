@@ -34,6 +34,20 @@ The small residual on R_A and R_T comes from rounding of C_A in the paper. The p
 
 The 86 B-series polynomial coefficients were cross-checked term by term against two independent open source codes before use.
 
+### Comparison with the KRISO Container Ship (KCS)
+
+The KCS is the open benchmark hull of the naval hydrodynamics community. Some Holtrop inputs (waterplane coefficient, bulb area and height, transom area, entrance angle) are not published, so Gronflad computes them from the official IGES hull of the SIMMAN 2008 workshop. It reads the 55 NURBS surfaces, tessellates them and integrates the hydrostatics. The published particulars are recovered first as a check:
+
+| Quantity | Published | Computed from IGES | Deviation |
+|---|---:|---:|---:|
+| Displacement volume (m³) | 52030 | 52051 | 0.04 % |
+| LCB (% L_pp, fwd +) | -1.48 | -1.480 | 0.03 % |
+| Midship coefficient C_M | 0.985 | 0.984 | 0.09 % |
+| Wetted surface w/o rudder (m²) | 9530 | 9546 | 0.17 % |
+| Waterline length (m) | 232.5 | 232.45 | 0.02 % |
+
+With these inputs, Holtrop and Mennen overpredicts the total resistance at the 24 knot design speed by about 10 % compared with the FORCE Technology model test (Lee et al., 2019), extrapolated to full scale with the ITTC 1978 method. Most of the gap is in the wave resistance. This is the honest accuracy of a statistical method applied to a single hull, and the reason Gronflad reports its assumptions.
+
 The method is statistical. Gronflad raises a `ValidityWarning` when a hull or speed falls outside the regression envelope (Froude number, prismatic coefficient, L/B, B/T) instead of silently extrapolating.
 
 ## Alternative fuels
@@ -100,7 +114,7 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - [x] Holtrop and Mennen (1982) calm water resistance, validated
 - [x] Propulsion factors (w, t, η_R) and Keller blade area, validated
 - [x] Wageningen B-series propeller with full scale correction, validated
-- [ ] Comparison with published reference data for the KRISO Container Ship (KCS)
+- [x] Comparison with the published KCS model test, hull inputs computed from the official IGES geometry
 - [x] Fuel module: FuelEU Maritime well-to-wake intensity, storage volume, compliance and penalty
 - [x] Route module: great circle legs and ERA5 wind along the route
 - [x] Flettner rotor model (lift, drag and motor power versus spin ratio, optimal rpm, operating limits)
@@ -116,6 +130,8 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - Regulation (EU) 2023/1805 of the European Parliament and of the Council on the use of renewable and low-carbon fuels in maritime transport (FuelEU Maritime), Annexes I and II.
 - DNV GL (2020). *Ammonia as a marine fuel*. White paper.
 - Tillig, F. and Ringsberg, J.W. (2020). Design, operation and analysis of wind-assisted cargo ships. *Ocean Engineering*, 211, 107603.
+- SIMMAN 2008 workshop, KCS geometry and conditions, FORCE Technology (simman2008.dk).
+- Lee, Y.-G. et al. (2019). Numerical simulations of added resistance in regular head waves on a container ship. *Brodogradnja*, 70(2), 61-86.
 - Hersbach, H. et al. (2020). The ERA5 global reanalysis. *Quarterly Journal of the Royal Meteorological Society*, 146, 1999-2049. Data retrieved through the Open-Meteo historical weather API.
 - Norsepower (2025). Rotor Sail product brochure (operating limits of the 30 x 5 m rotor).
 - Oosterveld, M.W.C. and van Oossanen, P. (1975). Further computer-analyzed data of the Wageningen B-screw series. *International Shipbuilding Progress*, 22(251), 251-262.

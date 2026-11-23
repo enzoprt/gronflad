@@ -11,7 +11,7 @@ import pandas as pd
 import streamlit as st
 
 from gronflad import KNOT, Hull, Propeller, ValidityWarning, propulsion, resistance
-from gronflad.ships import HM1982_HULL, HM1982_PROPELLER
+from gronflad.ships import HM1982_HULL, HM1982_PROPELLER, KCS_HULL, KCS_PROPELLER
 from gronflad.fuels import FUELS, MGO, fueleu_limit, wind_reward
 from gronflad.rotor import FlettnerRotor
 from gronflad.route import ROUTES, load_wind, total_distance, track
@@ -39,8 +39,12 @@ st.caption(
 )
 
 with st.sidebar:
+    presets = {
+        "Holtrop-Mennen 1982 example (205 m)": (HM1982_HULL, HM1982_PROPELLER, 25.0),
+        "KRISO Container Ship, KCS (230 m)": (KCS_HULL, KCS_PROPELLER, 24.0),
+    }
+    h, preset_prop, preset_speed = presets[st.selectbox("Ship", list(presets))]
     st.header("Hull")
-    h = HM1982_HULL
     L = st.number_input("Waterline length L (m)", 50.0, 400.0, h.L, 1.0)
     B = st.number_input("Breadth B (m)", 5.0, 70.0, h.B, 0.5)
     T = st.number_input("Draught T (m)", 1.0, 25.0, h.T, 0.1)
@@ -59,8 +63,8 @@ with st.sidebar:
         S_APP = st.number_input("Appendage wetted area (m²)", 0.0, 500.0, h.S_APP, 5.0)
 
     st.header("Propeller")
-    D = st.number_input("Diameter D (m)", 1.0, 12.0, HM1982_PROPELLER.D, 0.1)
-    Z = st.select_slider("Number of blades", options=[3, 4, 5, 6], value=HM1982_PROPELLER.Z)
+    D = st.number_input("Diameter D (m)", 1.0, 12.0, preset_prop.D, 0.1)
+    Z = st.select_slider("Number of blades", options=[3, 4, 5, 6], value=preset_prop.Z)
     model = st.radio("Open water model", ["Wageningen B-series", "Manual η_O"], horizontal=True)
     eta_O, P_D = None, None
     if model == "Wageningen B-series":
@@ -70,7 +74,7 @@ with st.sidebar:
         eta_O = st.slider("Open water efficiency η_O", 0.40, 0.80, 0.65, 0.005)
 
     st.header("Speed")
-    v_design = st.slider("Design speed (knots)", 5.0, 30.0, 25.0, 0.5)
+    v_design = st.slider("Design speed (knots)", 5.0, 30.0, preset_speed, 0.5)
     v_min, v_max = st.slider("Speed range for curves (knots)", 3.0, 32.0, (10.0, 26.0), 0.5)
 
     st.header("Voyage")
@@ -98,9 +102,12 @@ with st.sidebar:
     rotor_base = st.number_input("Rotor foot above waterline (m)", 5.0, 50.0, 20.0, 1.0)
 
 hull = replace(
-    HM1982_HULL, name="hull", L=L, B=B, T_F=T, T_A=T, volume=volume, lcb=lcb,
+    h, name="hull", L=L, B=B, T_F=T, T_A=T, volume=volume, lcb=lcb,
     C_M=C_M, C_WP=C_WP, A_BT=A_BT, h_B=h_B, A_T=A_T, S_APP=S_APP, C_stern=C_stern,
 )
+if hull != replace(h, name="hull"):
+    # Measured wetted surface and entrance angle no longer apply to a modified hull
+    hull = replace(hull, S=None, i_E=None)
 prop = Propeller(D=D, Z=Z, clearance=HM1982_PROPELLER.clearance, P_D=P_D)
 is_reference = hull == replace(HM1982_HULL, name="hull") and prop == HM1982_PROPELLER
 
