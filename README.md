@@ -1,5 +1,7 @@
 # Gronflad
 
+[![Open the app](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://gronflad.streamlit.app)
+
 **How much energy does a ship need on a given route, and how much can wind assistance and alternative fuels save?**
 
 Gronflad (from the Danish *grønne flåde*, "green fleet") is an open source voyage energy model for low carbon shipping. It chains naval architecture and energy engineering in one transparent Python library:
@@ -70,6 +72,8 @@ These figures remain an upper bound. Rotor interaction, superstructure effects a
 
 ## Interactive app
 
+**Live demo: [gronflad.streamlit.app](https://gronflad.streamlit.app)**
+
 Change the hull, the propeller, the speed, the route and the rotors, and see resistance, power, the propeller open water diagram, the rotor saving and the fuel comparison update live. Inputs outside the validity range of the method are flagged on screen.
 
 ![Gronflad web app](docs/img/app.png)
@@ -122,7 +126,7 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - [ ] Rudder resistance and yaw balance
 - [ ] More routes, including transpacific and Asia to Europe
 - [x] Interactive web app (Streamlit)
-- [ ] Public online deployment
+- [x] Public online deployment: [gronflad.streamlit.app](https://gronflad.streamlit.app)
 
 ## References
 
