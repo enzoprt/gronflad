@@ -68,7 +68,7 @@ Gronflad sails the ship along a real route with every 6 hour ERA5 wind sample of
 
 Three routes are included, each checked against a global elevation model so that no leg crosses land (only the Suez Canal shows up, as expected for a 300 m wide channel): Rotterdam to New York, Shanghai to Rotterdam via Suez, and Fos-sur-Mer to Port Said.
 
-Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: with the 2024 wind, the North Atlantic gives two to three times the saving of the Asia to Europe loop, where long stretches through the Malacca Strait and the Red Sea offer little usable wind.
+Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: with the 2024 wind, the North Atlantic gives two to three times the saving of the Asia to Europe loop. Finding out which legs drive that gap is a natural next step for the monthly and per-leg views.
 
 These figures remain an upper bound. Rotor interaction, superstructure effects and rudder resistance are not modelled yet.
 
