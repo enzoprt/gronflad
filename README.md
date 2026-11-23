@@ -66,7 +66,9 @@ Storage volumes including tank systems are indicative values derived from DNV GL
 
 Gronflad sails the ship along a real route with every 6 hour ERA5 wind sample of 2024, on 200 nm legs. At each sample the rotors run at the speed that maximises the net saving, within the manufacturer limits of a 30 x 5 m rotor sail (225 rpm, 270 kN). Lift, drag and motor power come from the coefficients of Tillig and Ringsberg (2020), fitted to full-scale measurements. The rotor side force makes the hull sail at a small drift angle, and the resulting resistance is deducted using the low aspect ratio wing model of the same paper, which cuts the saving by about a fifth. The saving then flows into the fuel comparison and the FuelEU wind reward factor.
 
-Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: North Atlantic westerlies give about twice the saving of the Mediterranean.
+Three routes are included, each checked against a global elevation model so that no leg crosses land (only the Suez Canal shows up, as expected for a 300 m wide channel): Rotterdam to New York, Shanghai to Rotterdam via Suez, and Fos-sur-Mer to Port Said.
+
+Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: with the 2024 wind, the North Atlantic gives two to three times the saving of the Asia to Europe loop, where long stretches through the Malacca Strait and the Red Sea offer little usable wind.
 
 These figures remain an upper bound. Rotor interaction, superstructure effects and rudder resistance are not modelled yet.
 
@@ -124,7 +126,8 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - [x] Flettner rotor model (lift, drag and motor power versus spin ratio, optimal rpm, operating limits)
 - [x] Hull drift resistance from the rotor side force
 - [ ] Rudder resistance and yaw balance
-- [ ] More routes, including transpacific and Asia to Europe
+- [x] Asia to Europe route via Suez
+- [ ] Transpacific route
 - [x] Interactive web app (Streamlit)
 - [x] Public online deployment: [gronflad.streamlit.app](https://gronflad.streamlit.app)
 

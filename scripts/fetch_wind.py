@@ -7,6 +7,7 @@ Writes src/gronflad/data/wind/<route>.json (6 hour sampling).
 import json
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -31,8 +32,15 @@ def fetch(lat: float, lon: float, year: int) -> dict:
             "timezone": "GMT",
         }
     )
-    with urllib.request.urlopen(f"{URL}?{query}", timeout=60) as r:
-        return json.load(r)["hourly"]
+    for attempt in range(8):
+        try:
+            with urllib.request.urlopen(f"{URL}?{query}", timeout=60) as r:
+                return json.load(r)["hourly"]
+        except urllib.error.HTTPError as e:
+            if e.code != 429:  # anything but the free tier rate limit is a real error
+                raise
+            time.sleep(30 * (attempt + 1))
+    raise RuntimeError("Open-Meteo rate limit, try again later")
 
 
 def main(year: int) -> None:
@@ -50,7 +58,7 @@ def main(year: int) -> None:
                     "direction": hourly["wind_direction_10m"][::6],
                 }
             )
-            time.sleep(0.5)
+            time.sleep(2)
         data = {
             "route": route.name,
             "year": year,

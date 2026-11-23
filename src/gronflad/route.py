@@ -97,12 +97,52 @@ ROUTES = {
             ),
         ),
         Route(
+            name="Shanghai to Rotterdam via Suez (Asia to Europe)",
+            slug="shanghai-rotterdam",
+            waypoints=(
+                (31.00, 122.80),  # Yangtze estuary approach
+                (28.00, 122.80),  # East China Sea
+                (24.60, 119.80),  # Taiwan Strait
+                (21.80, 115.50),  # off Hong Kong
+                (10.50, 109.80),  # off southern Vietnam
+                (1.25, 104.20),  # Singapore Strait, east
+                (1.15, 103.65),  # Singapore Strait, west
+                (1.60, 102.90),  # Strait of Malacca, south
+                (2.60, 101.20),  # Strait of Malacca
+                (5.90, 97.20),  # northern exit of Malacca
+                (5.60, 80.60),  # south of Sri Lanka
+                (13.30, 54.50),  # north of Socotra
+                (12.50, 47.00),  # Gulf of Aden
+                (12.60, 43.35),  # Bab el Mandeb
+                (20.00, 38.80),  # Red Sea
+                (27.60, 33.80),  # Gulf of Suez entrance
+                (28.60, 33.00),  # Gulf of Suez
+                (29.60, 32.62),  # Gulf of Suez, north
+                (29.93, 32.56),  # Suez
+                (31.45, 32.35),  # Port Said
+                (34.10, 25.00),  # south of Crete
+                (36.40, 14.60),  # Malta Channel
+                (37.40, 11.40),  # Strait of Sicily
+                (38.50, 7.90),  # south of Sardinia
+                (36.10, -2.50),  # Alboran Sea
+                (35.95, -5.60),  # Strait of Gibraltar
+                (36.80, -9.60),  # off Cape St Vincent
+                (39.00, -10.00),  # off Lisbon
+                (43.30, -9.90),  # off Finisterre
+                (48.75, -5.60),  # off Ushant
+                (50.15, -1.60),  # English Channel
+                (51.00, 1.55),  # Dover Strait
+                (51.98, 3.90),  # Maas approach
+            ),
+        ),
+        Route(
             name="Fos-sur-Mer to Port Said (Mediterranean)",
             slug="fos-port-said",
             waypoints=(
                 (43.25, 4.90),  # Fos approach
-                (38.70, 8.60),  # south of Sardinia
+                (38.50, 7.90),  # south of Sardinia
                 (37.40, 11.40),  # Strait of Sicily
+                (36.40, 14.60),  # Malta Channel
                 (34.10, 25.00),  # south of Crete
                 (31.45, 32.35),  # Port Said approach
             ),

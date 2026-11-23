@@ -1,4 +1,4 @@
-"""Net propulsion power saving of two Flettner rotors versus ship speed, on two routes.
+"""Net propulsion power saving of two Flettner rotors versus ship speed, on three routes.
 
 Run: python examples/rotor_savings.py
 Writes docs/img/rotor_savings.png
@@ -24,10 +24,10 @@ SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
 ROTOR = FlettnerRotor(D=5, H=30, count=2)
 SPEEDS = [10, 12, 14, 16, 18, 20, 22, 25]
 CASES = [
-    ("rotterdam-new-york", False, "Rotterdam to New York"),
     ("rotterdam-new-york", True, "New York to Rotterdam"),
+    ("rotterdam-new-york", False, "Rotterdam to New York"),
+    ("shanghai-rotterdam", False, "Shanghai to Rotterdam via Suez"),
     ("fos-port-said", False, "Fos-sur-Mer to Port Said"),
-    ("fos-port-said", True, "Port Said to Fos-sur-Mer"),
 ]
 
 fig, ax = plt.subplots(figsize=(9, 5), dpi=200, facecolor=SURFACE)

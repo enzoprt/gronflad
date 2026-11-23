@@ -139,7 +139,7 @@ def cached_rotor_table(hull, prop, rotor, speed_kn, eta_O):
 rotor = FlettnerRotor(D=rotor_D, H=rotor_H, base_height=rotor_base, count=n_rotors)
 assist = cached_route_saving(hull, curve_prop, rotor, route.slug, v_design, reverse, eta_O) if route and n_rotors else None
 
-c = st.columns(6)
+c = st.columns(3) + st.columns(3)
 c[0].metric("Total resistance", f"{res.R_T / 1e3:,.0f} kN")
 c[1].metric("Effective power", f"{res.P_E / 1e6:,.2f} MW")
 c[2].metric("Shaft power", f"{p.P_S / 1e6:,.2f} MW")
