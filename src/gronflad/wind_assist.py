@@ -1,7 +1,8 @@
 """Power saving of Flettner rotors along a route, over a year of real wind.
 
 For each 6 hour ERA5 sample and each leg of the route, the rotors run at the
-rotational speed that maximises the net saving. The saving in shaft power is
+rotational speed that maximises the net saving. The hull resistance caused by
+drifting against the rotor side force is deducted from the thrust. The saving in shaft power is
 linearised around the calm water operating point: a rotor thrust T replaces
 T * V / (eta_D * eta_S) of shaft power. `exact_saving` checks this against a
 full recomputation of the propulsion chain.
@@ -10,6 +11,7 @@ full recomputation of the propulsion chain.
 from bisect import bisect_right
 from dataclasses import dataclass, replace
 
+from .drift import induced_resistance
 from .holtrop_mennen import resistance
 from .hull import Hull
 from .propulsion import Propeller, propulsion
@@ -26,7 +28,7 @@ TWA_GRID = [float(a) for a in range(0, 181, 5)]  # degrees
 class RotorTable:
     """Optimal rotor thrust and power on a grid of true wind speed and angle."""
 
-    thrust: list[list[float]]  # [tws][twa], N
+    thrust: list[list[float]]  # [tws][twa], rotor thrust minus drift resistance, N
     power: list[list[float]]  # [tws][twa], W
 
     def lookup(self, tws: float, twa: float) -> tuple[float, float]:
@@ -47,13 +49,17 @@ class RotorTable:
         return interp(self.thrust), interp(self.power)
 
 
-def rotor_table(rotor: FlettnerRotor, ship_speed: float, shaft_power_per_newton: float) -> RotorTable:
+def rotor_table(
+    rotor: FlettnerRotor, ship_speed: float, shaft_power_per_newton: float, hull: Hull | None = None
+) -> RotorTable:
+    """Optimal rotor states on the wind grid. With `hull`, the drift resistance is accounted for."""
+    drag = (lambda side: induced_resistance(hull, ship_speed, side)) if hull is not None else None
     states = [
-        [best_rotor_state(rotor, tws, twa, ship_speed, shaft_power_per_newton) for twa in TWA_GRID]
+        [best_rotor_state(rotor, tws, twa, ship_speed, shaft_power_per_newton, induced_drag=drag) for twa in TWA_GRID]
         for tws in TWS_GRID
     ]
     return RotorTable(
-        thrust=[[s.thrust for s in row] for row in states],
+        thrust=[[s.net_thrust for s in row] for row in states],
         power=[[s.power for s in row] for row in states],
     )
 
@@ -61,7 +67,7 @@ def rotor_table(rotor: FlettnerRotor, ship_speed: float, shaft_power_per_newton:
 @dataclass(frozen=True)
 class WindAssistResult:
     P_S: float  # calm water shaft power without rotors, W
-    mean_thrust: float  # N, all rotors
+    mean_thrust: float  # N, all rotors, net of drift resistance
     shaft_saving: float  # mean gross shaft power saved, W
     rotor_power: float  # mean electric power to spin the rotors, W
     electric_efficiency: float
@@ -97,12 +103,16 @@ def route_saving(
     reverse: bool = False,
     eta_O: float | None = None,
     electric_efficiency: float = 0.95,
+    drift: bool = True,
 ) -> WindAssistResult:
-    """Average rotor saving over every wind sample, weighted by leg length."""
+    """Average rotor saving over every wind sample, weighted by leg length.
+
+    With `drift`, the hull resistance caused by balancing the rotor side force is deducted.
+    """
     res = resistance(hull, speed_kn * KNOT)
     p = propulsion(hull, prop, res, eta_O=eta_O)
     k = res.V / (p.eta_D * p.eta_S)
-    table = rotor_table(rotor, res.V, k)
+    table = rotor_table(rotor, res.V, k, hull if drift else None)
 
     legs = list(reversed(wind.legs)) if reverse else wind.legs
     speeds = list(reversed(wind.speed)) if reverse else wind.speed

@@ -54,3 +54,12 @@ def test_route_saving_is_bounded():
     two = route_saving(HM1982_HULL, HM1982_PROPELLER, FlettnerRotor(count=2), wind, 16)
     assert 0 < two.net_fraction < 0.5
     assert len(two.monthly_net_fraction) == 12
+
+
+@pytest.mark.filterwarnings("ignore")
+def test_drift_reduces_the_saving():
+    wind = load_wind(ROUTES["fos-port-said"])
+    rotor = FlettnerRotor(count=2)
+    without = route_saving(HM1982_HULL, HM1982_PROPELLER, rotor, wind, 14, drift=False)
+    with_drift = route_saving(HM1982_HULL, HM1982_PROPELLER, rotor, wind, 14)
+    assert 0 < with_drift.net_fraction < without.net_fraction

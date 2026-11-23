@@ -126,7 +126,7 @@ def cached_route_saving(hull, prop, rotor, slug, speed_kn, reverse, eta_O):
 def cached_rotor_table(hull, prop, rotor, speed_kn, eta_O):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ValidityWarning)
-        return rotor_table(rotor, speed_kn * KNOT, shaft_power_per_newton(hull, prop, speed_kn, eta_O))
+        return rotor_table(rotor, speed_kn * KNOT, shaft_power_per_newton(hull, prop, speed_kn, eta_O), hull)
 
 
 rotor = FlettnerRotor(D=rotor_D, H=rotor_H, base_height=rotor_base, count=n_rotors)
@@ -321,7 +321,8 @@ with tab_wind:
     else:
         c = st.columns(4)
         c[0].metric("Net saving in propulsion power", f"{assist.net_fraction:.1%}")
-        c[1].metric("Mean rotor thrust", f"{assist.mean_thrust / 1e3:,.0f} kN")
+        c[1].metric("Mean net rotor thrust", f"{assist.mean_thrust / 1e3:,.0f} kN",
+                    help="Rotor thrust minus the hull drift resistance caused by the side force.")
         c[2].metric("Mean rotor motor power", f"{assist.rotor_power / 1e3:,.0f} kW")
         c[3].metric("FuelEU wind reward f_wind", f"{wind_reward(assist.wind_power_ratio):.2f}")
 
@@ -345,7 +346,7 @@ with tab_wind:
                                     legend=alt.Legend(orient="top", title="True wind at 10 m")),
                     tooltip=["Wind", "True wind angle (deg):Q", alt.Tooltip("Thrust (kN):Q", format=",.0f")],
                 )
-                .properties(title=f"Thrust of {n_rotors} rotor(s) at {v_design:g} kn, optimal spin", height=320)
+                .properties(title=f"Net thrust of {n_rotors} rotor(s) at {v_design:g} kn, optimal spin", height=320)
             )
             st.altair_chart(polar, width="stretch")
             st.caption("0 deg is a head wind, 180 deg a following wind. Beam to broad reach winds work best.")
@@ -367,7 +368,8 @@ with tab_wind:
         st.caption(
             "Rotor coefficients from Tillig and Ringsberg (2020), fitted to full-scale measurements. "
             "Every 6 hour ERA5 sample on every 200 nm leg is used, with the rotor speed optimised each time. "
-            "Rotor interaction, drift and rudder resistance are not modelled, so these savings are an upper bound."
+            "The hull drift resistance from the side force is deducted (Tillig and Ringsberg, 2020). "
+            "Rotor interaction and rudder resistance are not modelled, so these savings remain an upper bound."
         )
 
 with tab_details:

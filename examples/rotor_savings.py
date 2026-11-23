@@ -59,7 +59,7 @@ ax.tick_params(colors=TEXT_SECONDARY, length=0)
 ax.legend(frameon=False, fontsize=9, labelcolor=TEXT_SECONDARY)
 fig.text(
     0.01, 0.01,
-    "Upper bound: rotor interaction, drift and rudder resistance not modelled. Rotor model: Tillig and Ringsberg (2020).",
+    "Hull drift resistance included. Upper bound: rotor interaction and rudder resistance not modelled. Model: Tillig and Ringsberg (2020).",
     color=TEXT_SECONDARY, fontsize=7.5,
 )
 out = Path(__file__).resolve().parents[1] / "docs" / "img" / "rotor_savings.png"

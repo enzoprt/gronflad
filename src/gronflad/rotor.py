@@ -18,10 +18,11 @@ Rotor Sail (brochure, 2025): 0 to 225 rpm and 270 kN maximum continuous thrust.
 Simplifications, stated so they can be checked:
 - The wind profile over the sea follows the Hellmann law with alpha = 0.27.
 - Interaction between rotors, and between rotors and superstructure, is ignored.
-- Drift and rudder resistance caused by the side force are ignored.
+- Drift resistance from the side force is handled in `drift.py`, rudder resistance is ignored.
 """
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from math import atan2, cos, degrees, hypot, pi, radians, sin
 
 RHO_AIR = 1.225  # kg/m3
@@ -82,6 +83,11 @@ class RotorState:
     thrust: float  # N, all rotors, positive forward
     side_force: float  # N, all rotors
     power: float  # electric power to spin all rotors, W
+    induced_drag: float = 0.0  # hull resistance added by drifting against the side force, N
+
+    @property
+    def net_thrust(self) -> float:
+        return self.thrust - self.induced_drag
 
 
 def rotor_state(rotor: FlettnerRotor, tws10: float, twa_deg: float, ship_speed: float, omega: float) -> RotorState:
@@ -120,12 +126,14 @@ def best_rotor_state(
     shaft_power_per_newton: float,
     electric_efficiency: float = 0.95,
     steps: int = 41,
+    induced_drag: Callable[[float], float] | None = None,
 ) -> RotorState:
     """Rotational speed that maximises the net saving in fuel power.
 
     `shaft_power_per_newton` converts rotor thrust into saved shaft power (V / eta_D).
     The rotor motor power comes from the same engines through a generator and drive
-    of efficiency `electric_efficiency`.
+    of efficiency `electric_efficiency`. `induced_drag` maps the side force (N) to the
+    hull resistance it causes, see `drift.induced_resistance`.
     """
     mid = rotor.base_height + rotor.H / 2
     aws_mid, _ = apparent_wind(wind_at_height(tws10, mid), twa_deg, ship_speed)
@@ -141,11 +149,15 @@ def best_rotor_state(
         state = rotor_state(rotor, tws10, twa_deg, ship_speed, omega=omega)
         if state.thrust > rotor.max_thrust * rotor.count:
             break
-        gain = state.thrust * shaft_power_per_newton - state.power / electric_efficiency
+        if induced_drag is not None:
+            state = replace(state, induced_drag=induced_drag(state.side_force))
+        gain = state.net_thrust * shaft_power_per_newton - state.power / electric_efficiency
         if gain > best_gain:
             best, best_gain = state, gain
     if best is None:  # even the slowest spin breaks a limit, so the rotor stays idle
         best = rotor_state(rotor, tws10, twa_deg, ship_speed, omega=0.0)
+        if induced_drag is not None:
+            best = replace(best, induced_drag=induced_drag(best.side_force))
     return best
 
 
