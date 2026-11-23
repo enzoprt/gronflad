@@ -13,7 +13,10 @@ import streamlit as st
 from gronflad import KNOT, Hull, Propeller, ValidityWarning, propulsion, resistance
 from gronflad.ships import HM1982_HULL, HM1982_PROPELLER
 from gronflad.fuels import FUELS, MGO, fueleu_limit, wind_reward
+from gronflad.rotor import FlettnerRotor
+from gronflad.route import ROUTES, load_wind, total_distance, track
 from gronflad.voyage import Voyage, compare_fuels, teu_slots, voyage_energy
+from gronflad.wind_assist import TWA_GRID, TWS_GRID, assisted_energy, rotor_table, route_saving, shaft_power_per_newton
 from gronflad.wageningen import BSeries
 
 PUBLISHED = {  # Holtrop and Mennen (1982), p. 170, 25 knots
@@ -71,16 +74,28 @@ with st.sidebar:
     v_min, v_max = st.slider("Speed range for curves (knots)", 3.0, 32.0, (10.0, 26.0), 0.5)
 
     st.header("Voyage")
-    distance = st.number_input("Distance (nautical miles)", 100.0, 20000.0, 5000.0, 100.0)
+    route_options = {"Custom distance": None, **{r.name: r for r in ROUTES.values()}}
+    route = route_options[st.selectbox("Route", list(route_options), index=1)]
+    if route:
+        reverse = st.toggle("Sail the route in reverse")
+        distance = total_distance(route)
+        st.caption(f"{distance:,.0f} nm along great circle legs, ERA5 wind of 2024")
+    else:
+        reverse = False
+        distance = st.number_input("Distance (nautical miles)", 100.0, 20000.0, 5000.0, 100.0)
     sea_margin = st.slider("Sea margin over calm water (%)", 0, 40, 15, 1) / 100
     engine_eff = st.slider("Engine efficiency", 0.30, 0.60, 0.50, 0.01,
                            help="0.50 is a two-stroke diesel at about 170 g/kWh on MGO.")
     year = st.select_slider("FuelEU reporting year", options=[2025, 2030, 2035, 2040, 2045, 2050], value=2030)
-    wind_share = st.slider("Wind assisted share of propulsion power (%)", 0, 30, 0, 1,
-                           help="Only used for the FuelEU reward factor until the rotor model lands.") / 100
     default_fuels = ["HFO", "MGO", "LNG, Otto medium speed", "LNG, Diesel slow speed",
                      "Methanol (natural gas)", "Ammonia (natural gas)", "e-Methanol", "e-Ammonia"]
     chosen = st.multiselect("Fuels to compare", list(FUELS), default=default_fuels)
+
+    st.header("Wind assistance")
+    n_rotors = st.slider("Number of Flettner rotors", 0, 6, 2, help="Needs a route with wind data.")
+    rotor_D = st.number_input("Rotor diameter (m)", 2.0, 8.0, 5.0, 0.5)
+    rotor_H = st.number_input("Rotor height (m)", 10.0, 40.0, 30.0, 1.0)
+    rotor_base = st.number_input("Rotor foot above waterline (m)", 5.0, 50.0, 20.0, 1.0)
 
 hull = replace(
     HM1982_HULL, name="hull", L=L, B=B, T_F=T, T_A=T, volume=volume, lcb=lcb,
@@ -99,6 +114,24 @@ for issue in sorted({str(w.message).removeprefix("hull: ") for w in caught}):
 # Off design points keep the design pitch, as for a real fixed pitch propeller
 curve_prop = replace(prop, P_D=p.P_D) if p.P_D is not None else prop
 
+
+@st.cache_data(show_spinner="Running a year of ERA5 wind along the route...")
+def cached_route_saving(hull, prop, rotor, slug, speed_kn, reverse, eta_O):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ValidityWarning)
+        return route_saving(hull, prop, rotor, load_wind(ROUTES[slug]), speed_kn, reverse=reverse, eta_O=eta_O)
+
+
+@st.cache_data
+def cached_rotor_table(hull, prop, rotor, speed_kn, eta_O):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ValidityWarning)
+        return rotor_table(rotor, speed_kn * KNOT, shaft_power_per_newton(hull, prop, speed_kn, eta_O))
+
+
+rotor = FlettnerRotor(D=rotor_D, H=rotor_H, base_height=rotor_base, count=n_rotors)
+assist = cached_route_saving(hull, curve_prop, rotor, route.slug, v_design, reverse, eta_O) if route and n_rotors else None
+
 c = st.columns(6)
 c[0].metric("Total resistance", f"{res.R_T / 1e3:,.0f} kN")
 c[1].metric("Effective power", f"{res.P_E / 1e6:,.2f} MW")
@@ -107,8 +140,8 @@ c[3].metric("Propulsive efficiency η_D", f"{p.eta_D:.3f}")
 c[4].metric("Propeller speed", f"{p.n * 60:.1f} rpm" if p.n else "n/a")
 c[5].metric("Froude number", f"{res.Fn:.3f}")
 
-tab_curves, tab_propeller, tab_fuels, tab_details, tab_validation = st.tabs(
-    ["Speed curves", "Propeller", "Voyage & fuels", "Breakdown at design speed", "Validation"]
+tab_curves, tab_propeller, tab_fuels, tab_wind, tab_details, tab_validation = st.tabs(
+    ["Speed curves", "Propeller", "Voyage & fuels", "Wind assistance", "Breakdown at design speed", "Validation"]
 )
 
 with tab_curves:
@@ -201,8 +234,9 @@ with tab_fuels:
     voyage = Voyage(distance_nm=distance, speed_kn=v_design, sea_margin=sea_margin, engine_efficiency=engine_eff)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ValidityWarning)
-        energy = voyage_energy(hull, prop, voyage, eta_O=eta_O)
-    f_wind = wind_reward(wind_share)
+        energy_no_wind = voyage_energy(hull, prop, voyage, eta_O=eta_O)
+    energy = assisted_energy(energy_no_wind, assist) if assist else energy_no_wind
+    f_wind = wind_reward(assist.wind_power_ratio) if assist else 1.0
     uses = compare_fuels(energy, [FUELS[name] for name in chosen], f_wind)
     mgo_storage = compare_fuels(energy, [MGO])[0].storage_volume
     limit = fueleu_limit(year)
@@ -210,7 +244,11 @@ with tab_fuels:
     c = st.columns(4)
     c[0].metric("Voyage duration", f"{voyage.duration_h / 24:.1f} days")
     c[1].metric("Service shaft power", f"{energy.P_service / 1e6:.1f} MW")
-    c[2].metric("Fuel energy", f"{energy.fuel_energy / 1e6:,.1f} TJ")
+    c[2].metric(
+        "Fuel energy", f"{energy.fuel_energy / 1e6:,.1f} TJ",
+        delta=f"{energy.fuel_energy / energy_no_wind.fuel_energy - 1:.1%} with rotors" if assist else None,
+        delta_color="inverse",
+    )
     c[3].metric(f"FuelEU limit {year}", f"{limit:.1f} g/MJ")
 
     if not uses:
@@ -273,6 +311,63 @@ with tab_fuels:
             "natural gas. e-fuels are set at the minimum saving that qualifies as RFNBO (28.2 gCO2eq/MJ). "
             "Storage volumes include tank systems and are indicative (DNV GL, 2020). The penalty assumes "
             "the whole voyage is in FuelEU scope, without the RFNBO multiplier or pilot fuel."
+        )
+
+with tab_wind:
+    if not route:
+        st.info("Pick a route in the sidebar to use a year of real wind.")
+    elif not n_rotors:
+        st.info("Add at least one Flettner rotor in the sidebar.")
+    else:
+        c = st.columns(4)
+        c[0].metric("Net saving in propulsion power", f"{assist.net_fraction:.1%}")
+        c[1].metric("Mean rotor thrust", f"{assist.mean_thrust / 1e3:,.0f} kN")
+        c[2].metric("Mean rotor motor power", f"{assist.rotor_power / 1e3:,.0f} kW")
+        c[3].metric("FuelEU wind reward f_wind", f"{wind_reward(assist.wind_power_ratio):.2f}")
+
+        left, right = st.columns([3, 2])
+        with left:
+            table = cached_rotor_table(hull, curve_prop, rotor, v_design, eta_O)
+            rows = [
+                {"True wind angle (deg)": twa, "Wind": f"{tws:g} m/s", "Thrust (kN)": table.thrust[int(tws)][j] / 1e3}
+                for tws in (5.0, 10.0, 15.0)
+                for j, twa in enumerate(TWA_GRID)
+            ]
+            winds = ["5 m/s", "10 m/s", "15 m/s"]
+            polar = (
+                alt.Chart(pd.DataFrame(rows))
+                .mark_line(strokeWidth=2)
+                .encode(
+                    x=alt.X("True wind angle (deg):Q", scale=alt.Scale(domain=[0, 180]),
+                            axis=alt.Axis(values=list(range(0, 181, 30)))),
+                    y="Thrust (kN):Q",
+                    color=alt.Color("Wind:N", sort=winds, scale=alt.Scale(domain=winds, range=SERIES[:3]),
+                                    legend=alt.Legend(orient="top", title="True wind at 10 m")),
+                    tooltip=["Wind", "True wind angle (deg):Q", alt.Tooltip("Thrust (kN):Q", format=",.0f")],
+                )
+                .properties(title=f"Thrust of {n_rotors} rotor(s) at {v_design:g} kn, optimal spin", height=320)
+            )
+            st.altair_chart(polar, width="stretch")
+            st.caption("0 deg is a head wind, 180 deg a following wind. Beam to broad reach winds work best.")
+        with right:
+            st.map(pd.DataFrame(track(route), columns=["lat", "lon"]), size=6000, color="#2a78d6", height=360, zoom=2)
+
+        months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        monthly = (
+            alt.Chart(pd.DataFrame({"Month": months, "Net saving": assist.monthly_net_fraction}))
+            .mark_bar(color=SERIES[0], cornerRadiusEnd=4)
+            .encode(
+                x=alt.X("Month:N", sort=months, title=None),
+                y=alt.Y("Net saving:Q", axis=alt.Axis(format="%")),
+                tooltip=["Month", alt.Tooltip("Net saving:Q", format=".1%")],
+            )
+            .properties(title="Net saving in propulsion power per month, ERA5 2024", height=260)
+        )
+        st.altair_chart(monthly, width="stretch")
+        st.caption(
+            "Rotor coefficients from Tillig and Ringsberg (2020), fitted to full-scale measurements. "
+            "Every 6 hour ERA5 sample on every 200 nm leg is used, with the rotor speed optimised each time. "
+            "Rotor interaction, drift and rudder resistance are not modelled, so these savings are an upper bound."
         )
 
 with tab_details:

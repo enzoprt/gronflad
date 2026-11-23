@@ -7,8 +7,8 @@ Gronflad (from the Danish *grønne flåde*, "green fleet") is an open source voy
 1. **Hull resistance** in calm water (Holtrop and Mennen method)
 2. **Propulsion**: hull-propeller interaction, Wageningen B-series propeller, shaft power
 3. **Voyage and fuels**: ammonia, methanol, LNG and hydrogen compared on bunker mass, storage volume, lost container slots, well-to-wake emissions and FuelEU Maritime compliance
-4. **Route and weather**: real wind along a shipping lane *(planned)*
-5. **Wind assistance**: thrust and power saving of Flettner rotors *(planned)*
+4. **Route and weather**: great circle routes with a full year of ERA5 reanalysis wind
+5. **Wind assistance**: Flettner rotor thrust, motor power and net fuel saving along the route
 
 ![Resistance breakdown](docs/img/resistance_breakdown.png)
 
@@ -44,15 +44,27 @@ Emission factors are the official defaults of FuelEU Maritime (Regulation (EU) 2
 
 Storage volumes including tank systems are indicative values derived from DNV GL (2020). Pilot fuel, the RFNBO multiplier and per-engine efficiency differences are not modelled yet.
 
+## Wind assistance
+
+![Rotor savings](docs/img/rotor_savings.png)
+
+Gronflad sails the ship along a real route with every 6 hour ERA5 wind sample of 2024, on 200 nm legs. At each sample the rotors run at the speed that maximises the net saving, within the manufacturer limits of a 30 x 5 m rotor sail (225 rpm, 270 kN). Lift, drag and motor power come from the coefficients of Tillig and Ringsberg (2020), fitted to full-scale measurements. The saving then flows into the fuel comparison and the FuelEU wind reward factor.
+
+Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: North Atlantic westerlies give about twice the saving of the Mediterranean.
+
+These figures are an upper bound. Rotor interaction, superstructure effects, and the drift and rudder resistance caused by the side force are not modelled yet.
+
 ## Interactive app
 
-Change the hull, the propeller, the speed and the voyage, and see resistance, power, the propeller open water diagram and the fuel comparison update live. Inputs outside the validity range of the method are flagged on screen.
+Change the hull, the propeller, the speed, the route and the rotors, and see resistance, power, the propeller open water diagram, the rotor saving and the fuel comparison update live. Inputs outside the validity range of the method are flagged on screen.
 
 ![Gronflad web app](docs/img/app.png)
 
 ![Propeller open water diagram](docs/img/app_propeller.png)
 
 ![Voyage and fuel comparison](docs/img/app_fuels.png)
+
+![Wind assistance](docs/img/app_wind.png)
 
 ```bash
 pip install -e ".[app]"
@@ -90,8 +102,10 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - [x] Wageningen B-series propeller with full scale correction, validated
 - [ ] Comparison with published reference data for the KRISO Container Ship (KCS)
 - [x] Fuel module: FuelEU Maritime well-to-wake intensity, storage volume, compliance and penalty
-- [ ] Route module: great circle legs and ERA5 wind along the route
-- [ ] Flettner rotor model (lift and drag versus spin ratio, rotor power consumption)
+- [x] Route module: great circle legs and ERA5 wind along the route
+- [x] Flettner rotor model (lift, drag and motor power versus spin ratio, optimal rpm, operating limits)
+- [ ] Drift and rudder resistance from the rotor side force
+- [ ] More routes, including transpacific and Asia to Europe
 - [x] Interactive web app (Streamlit)
 - [ ] Public online deployment
 
@@ -100,6 +114,9 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - Holtrop, J. and Mennen, G.G.J. (1982). An approximate power prediction method. *International Shipbuilding Progress*, 29(335), 166-170.
 - Regulation (EU) 2023/1805 of the European Parliament and of the Council on the use of renewable and low-carbon fuels in maritime transport (FuelEU Maritime), Annexes I and II.
 - DNV GL (2020). *Ammonia as a marine fuel*. White paper.
+- Tillig, F. and Ringsberg, J.W. (2020). Design, operation and analysis of wind-assisted cargo ships. *Ocean Engineering*, 211, 107603.
+- Hersbach, H. et al. (2020). The ERA5 global reanalysis. *Quarterly Journal of the Royal Meteorological Society*, 146, 1999-2049. Data retrieved through the Open-Meteo historical weather API.
+- Norsepower (2025). Rotor Sail product brochure (operating limits of the 30 x 5 m rotor).
 - Oosterveld, M.W.C. and van Oossanen, P. (1975). Further computer-analyzed data of the Wageningen B-screw series. *International Shipbuilding Progress*, 22(251), 251-262.
 
 ## Author
