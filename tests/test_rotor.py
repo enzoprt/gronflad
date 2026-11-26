@@ -65,3 +65,12 @@ def test_operating_limits_are_respected():
             state = best_rotor_state(rotor, tws, twa, ship_speed=12, shaft_power_per_newton=10)
             assert state.omega * 60 / (2 * 3.141592653589793) <= rotor.max_rpm + 1e-9
             assert state.thrust <= rotor.max_thrust * rotor.count + 1e-6
+
+
+def test_following_wind_at_ship_speed_stays_finite():
+    # 5 m/s at 10 m in a following wind matches a 12 knot ship somewhere on the rotor height
+    rotor = FlettnerRotor(count=2)
+    V = 12 * 1852 / 3600
+    thrusts = [best_rotor_state(rotor, 5.0, twa, V, 1.0).thrust for twa in (170, 175, 179.9, 180)]
+    assert max(thrusts) < 20e3
+    assert abs(thrusts[-1] - thrusts[-2]) < 5e3

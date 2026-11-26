@@ -11,6 +11,11 @@ of Li et al. (2012) and corrected against full-scale measurements on a 4 x 24 m
 rotor. They hold for rotors with an aspect ratio of about 6 and an end disc of
 twice the rotor diameter. Agreement with measurements is best for spin ratios
 of 1.5 to 2.5 and degrades above 4, so Gronflad caps the spin ratio at 4.
+The cap applies at mid height. Near a following wind as fast as the ship, the
+apparent wind on some strips of the rotor almost vanishes and their local spin
+ratio grows without bound. Those strips keep the lift and drag coefficients of
+spin ratio 4 (saturation), and their motor power keeps growing with the cube of
+the rotational speed, so forces stay finite and the motor power is not lost.
 
 Operating limits default to the manufacturer data of a 30 x 5 m Norsepower
 Rotor Sail (brochure, 2025): 0 to 225 rpm and 270 kN maximum continuous thrust.
@@ -41,6 +46,13 @@ def c_drag(sr: float) -> float:
 
 def c_power(sr: float) -> float:
     return 0.0001 * sr**5 - 0.0004 * sr**4 + 0.0143 * sr**3 - 0.0168 * sr**2 + 0.0234 * sr
+
+
+def strip_coefficients(sr: float) -> tuple[float, float, float]:
+    """Lift, drag and power coefficients at a local spin ratio, held within the fitted range."""
+    if sr <= SPIN_RATIO_MAX:
+        return c_lift(sr), c_drag(sr), c_power(sr)
+    return c_lift(SPIN_RATIO_MAX), c_drag(SPIN_RATIO_MAX), c_power(SPIN_RATIO_MAX) * (sr / SPIN_RATIO_MAX) ** 3
 
 
 def wind_at_height(tws10: float, h: float) -> float:
@@ -101,12 +113,13 @@ def rotor_state(rotor: FlettnerRotor, tws10: float, twa_deg: float, ship_speed: 
             continue
         sr = omega * rotor.D / 2 / aws
         q = 0.5 * RHO_AIR * aws**2 * strip_area
-        lift, drag = q * c_lift(sr), q * c_drag(sr)
+        cl, cd, cp = strip_coefficients(sr)
+        lift, drag = q * cl, q * cd
         a = radians(awa)
         # Lift acts perpendicular to the apparent wind, the spin direction is chosen to push forward
         thrust += lift * sin(a) - drag * cos(a)
         side += lift * cos(a) + drag * sin(a)
-        power += q * aws * c_power(sr)
+        power += q * aws * cp
     mid = rotor.base_height + rotor.H / 2
     aws_mid, _ = apparent_wind(wind_at_height(tws10, mid), twa_deg, ship_speed)
     return RotorState(
