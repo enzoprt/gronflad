@@ -16,7 +16,7 @@ from .holtrop_mennen import resistance
 from .hull import Hull
 from .propulsion import Propeller, propulsion
 from .rotor import FlettnerRotor, best_rotor_state
-from .route import WindSeries, true_wind_angle
+from .route import Leg, WindSeries, true_wind_angle
 from .voyage import VoyageEnergy
 from .water import KNOT
 
@@ -72,6 +72,9 @@ class WindAssistResult:
     rotor_power: float  # mean electric power to spin the rotors, W
     electric_efficiency: float
     monthly_net_fraction: list[float]  # 12 values
+    legs: list[Leg]  # in the direction of travel
+    leg_net_fraction: list[float]  # mean net saving on each leg, fraction of P_S
+    leg_mean_wind: list[float]  # mean true wind speed at 10 m on each leg, m/s
 
     @property
     def net_saving(self) -> float:
@@ -121,12 +124,13 @@ def route_saving(
     total = sum(weights)
 
     thrust_sum = saving_sum = power_sum = 0.0
+    leg_net = [0.0] * len(legs)
     month_net = [0.0] * 12
     month_n = [0] * 12
     for t, stamp in enumerate(wind.times):
         month = int(stamp[5:7]) - 1
         step_net = 0.0
-        for leg, w, spd, drn in zip(legs, weights, speeds, directions):
+        for i, (leg, w, spd, drn) in enumerate(zip(legs, weights, speeds, directions)):
             heading = (leg.heading + 180) % 360 if reverse else leg.heading
             thrust, power = table.lookup(spd[t], true_wind_angle(drn[t], heading))
             # The rotors cannot save more than the whole shaft power
@@ -134,7 +138,9 @@ def route_saving(
             thrust_sum += thrust * w
             saving_sum += saving * w
             power_sum += power * w
-            step_net += (saving - power / electric_efficiency) * w
+            net = saving - power / electric_efficiency
+            leg_net[i] += net
+            step_net += net * w
         month_net[month] += step_net / total / p.P_S
         month_n[month] += 1
 
@@ -146,6 +152,9 @@ def route_saving(
         rotor_power=power_sum / n,
         electric_efficiency=electric_efficiency,
         monthly_net_fraction=[month_net[m] / month_n[m] if month_n[m] else 0.0 for m in range(12)],
+        legs=legs,
+        leg_net_fraction=[v / len(wind.times) / p.P_S for v in leg_net],
+        leg_mean_wind=[sum(spd) / len(spd) for spd in speeds],
     )
 
 

@@ -8,6 +8,7 @@ from dataclasses import replace
 
 import altair as alt
 import pandas as pd
+import pydeck as pdk
 import streamlit as st
 
 from gronflad import KNOT, Hull, Propeller, ValidityWarning, propulsion, resistance
@@ -134,6 +135,32 @@ def cached_rotor_table(hull, prop, rotor, speed_kn, eta_O):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", ValidityWarning)
         return rotor_table(rotor, speed_kn * KNOT, shaft_power_per_newton(hull, prop, speed_kn, eta_O), hull)
+
+
+def leg_map(route, assist):
+    """Route track and legs coloured by their mean net saving."""
+    top = max(max(assist.leg_net_fraction), 1e-9)
+    rows = []
+    for leg, frac, tws in zip(assist.legs, assist.leg_net_fraction, assist.leg_mean_wind):
+        f = max(frac, 0.0) / top
+        # Light to dark blue, from #b4d2f5 to #0f3c8a
+        color = [round(180 + (15 - 180) * f), round(210 + (60 - 210) * f), round(245 + (138 - 245) * f)]
+        rows.append({"lat": leg.lat, "lon": leg.lon, "color": color,
+                     "saving": f"{frac:.1%}", "wind": f"{tws:.1f}"})
+    path = [{"path": [[lon, lat] for lat, lon in track(route)]}]
+    view = pdk.data_utils.compute_view([[r["lon"], r["lat"]] for r in rows])
+    view.zoom = max(view.zoom - 0.6, 0.5)
+    return pdk.Deck(
+        layers=[
+            pdk.Layer("PathLayer", path, get_path="path", get_color=[120, 120, 120], width_min_pixels=1),
+            pdk.Layer("ScatterplotLayer", pd.DataFrame(rows), get_position=["lon", "lat"], get_fill_color="color",
+                      get_line_color=[60, 60, 60], stroked=True, line_width_min_pixels=0.5,
+                      radius_min_pixels=5, radius_max_pixels=9, get_radius=40000, pickable=True),
+        ],
+        initial_view_state=view,
+        tooltip={"text": "Net saving {saving}\nMean wind {wind} m/s"},
+        map_style="light",
+    )
 
 
 rotor = FlettnerRotor(D=rotor_D, H=rotor_H, base_height=rotor_base, count=n_rotors)
@@ -358,7 +385,30 @@ with tab_wind:
             st.altair_chart(polar, width="stretch")
             st.caption("0 deg is a head wind, 180 deg a following wind. Beam to broad reach winds work best.")
         with right:
-            st.map(pd.DataFrame(track(route), columns=["lat", "lon"]), size=6000, color="#2a78d6", height=360, zoom=2)
+            st.pydeck_chart(leg_map(route, assist), height=360)
+            st.caption("Each dot is a 200 nm leg, darker where the rotors save more. Hover for values.")
+
+        start = 0.0
+        leg_rows = []
+        for leg, frac, tws in zip(assist.legs, assist.leg_net_fraction, assist.leg_mean_wind):
+            leg_rows.append({"From (nm)": start, "To (nm)": start + leg.length_nm, "Net saving": frac,
+                             "Mean wind (m/s)": tws})
+            start += leg.length_nm
+        along = (
+            alt.Chart(pd.DataFrame(leg_rows))
+            .mark_rect(color=SERIES[0], stroke="white", strokeWidth=1)
+            .encode(
+                x=alt.X("From (nm):Q", title="Distance from departure (nm)", scale=alt.Scale(domain=[0, start], nice=False)),
+                x2="To (nm):Q",
+                y=alt.Y("Net saving:Q", axis=alt.Axis(format="%")),
+                y2=alt.datum(0),
+                tooltip=[alt.Tooltip("From (nm):Q", format=",.0f"), alt.Tooltip("To (nm):Q", format=",.0f"),
+                         alt.Tooltip("Net saving:Q", format=".1%"),
+                         alt.Tooltip("Mean wind (m/s):Q", format=".1f")],
+            )
+            .properties(title="Net saving in propulsion power along the route, mean of 2024", height=240)
+        )
+        st.altair_chart(along, width="stretch")
 
         months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
         monthly = (

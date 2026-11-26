@@ -68,7 +68,15 @@ Gronflad sails the ship along a real route with every 6 hour ERA5 wind sample of
 
 Three routes are included, each checked against a global elevation model so that no leg crosses land (only the Suez Canal shows up, as expected for a 300 m wide channel): Rotterdam to New York, Shanghai to Rotterdam via Suez, and Fos-sur-Mer to Port Said.
 
-Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: with the 2024 wind, the North Atlantic gives two to three times the saving of the Asia to Europe loop. Finding out which legs drive that gap is a natural next step for the monthly and per-leg views.
+Two lessons stand out. Wind assistance pays off far more at slow steaming, because rotor thrust stays roughly constant while propulsion power falls with the cube of speed. And the route matters as much as the hardware: with the 2024 wind, the North Atlantic gives two to three times the saving of the Asia to Europe loop.
+
+The per-leg view shows where that gap comes from (2 rotors, 205 m ship, 12 knots, Shanghai to Rotterdam):
+
+- In the Strait of Malacca the mean wind stays around 2 to 3.5 m/s and most legs save 4 % or less.
+- Northbound in the northern Red Sea and the Gulf of Suez, the wind blows within 45 degrees of the bow 77 to 94 % of the time. The rotors cannot help there, and the leg savings fall to between -2 % and +1 % (an idle rotor still adds windage).
+- Across the Arabian Sea and the Gulf of Aden, and again from Portugal to the Channel, several legs reach 20 to 39 %, close to North Atlantic values.
+
+Sailing the other way, the Red Sea legs give 2 to 9 %: a following wind is a poor wind for a rotor sail, as the thrust curves in the app show.
 
 These figures remain an upper bound. Rotor interaction, superstructure effects and rudder resistance are not modelled yet.
 
@@ -127,6 +135,7 @@ print(f"Shaft power: {prop.P_S / 1e3:.0f} kW at {prop.n * 60:.0f} rpm, P/D = {pr
 - [x] Hull drift resistance from the rotor side force
 - [ ] Rudder resistance and yaw balance
 - [x] Asia to Europe route via Suez
+- [x] Per-leg saving map and along-route chart
 - [ ] Transpacific route
 - [x] Interactive web app (Streamlit)
 - [x] Public online deployment: [gronflad.streamlit.app](https://gronflad.streamlit.app)

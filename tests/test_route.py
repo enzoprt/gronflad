@@ -63,3 +63,16 @@ def test_drift_reduces_the_saving():
     without = route_saving(HM1982_HULL, HM1982_PROPELLER, rotor, wind, 14, drift=False)
     with_drift = route_saving(HM1982_HULL, HM1982_PROPELLER, rotor, wind, 14)
     assert 0 < with_drift.net_fraction < without.net_fraction
+
+
+@pytest.mark.filterwarnings("ignore")
+def test_leg_savings_add_up_to_the_route_saving():
+    wind = load_wind(ROUTES["rotterdam-new-york"])
+    for reverse in (False, True):
+        r = route_saving(HM1982_HULL, HM1982_PROPELLER, FlettnerRotor(count=2), wind, 14, reverse=reverse)
+        assert len(r.leg_net_fraction) == len(r.legs) == len(wind.legs)
+        weighted = sum(f * leg.length_nm for f, leg in zip(r.leg_net_fraction, r.legs))
+        assert weighted / sum(leg.length_nm for leg in r.legs) == pytest.approx(r.net_fraction, rel=1e-9)
+        assert all(0 < v < 30 for v in r.leg_mean_wind)
+    # Legs run in the direction of travel
+    assert r.legs[0].lon < -30
